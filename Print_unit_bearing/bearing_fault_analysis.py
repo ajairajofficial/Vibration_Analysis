@@ -1,12 +1,26 @@
 # bearing_fault_analysis.py
 
 """
-A complete Python script to:
-1. Load vibration data from CSV (single column, no timestamp)
+##########################################################################################################
+############ A Product developed by: Ajai Raj for stuff Print unit bearing fault analysis ################
+##########################################################################################################
+Objective:
+Finding the fault frequencies (peak Amplitude) of the bearing in the vibration data.
+##########################################################################################################
+This analysis is for Print Unit 1 Print Couple 3. The hardware setup includes the VSE903 data acquisition system
+paired with a VSA001 vibration sensor. Data was accessed and captured via VES004 IFM software, 
+with the raw data exported in CSV format for further analysis.
+
+The shaft speed was determined to be 416 RPM, calculated using a separate digital pulse signal. 
+The sampling frequency during data acquisition was 50 kHz.
+
+##########################################################################################################
+
+1. Load vibration data from CSV 
 2. Compute FFT
-3. Identify amplitudes at bearing fault frequencies (FIP, FEP, FRP)
+3. Identify amplitudes at bearing fault frequencies (FIP, FEP, FRP) 
 4. Visualize fault zones clearly
-5. Fully documented for educational and production use
+
 """
 
 import pandas as pd
@@ -17,25 +31,26 @@ from scipy.signal import find_peaks
 
 # --------------------------- CONFIGURATION ---------------------------
 
-FS = 50000  # Sampling frequency in Hz (50 kHz)
-RPM = 400  # Shaft speed
-SHAFT_FREQ = RPM / 60  # Hz
+FS = 50000  # Sampling frequency in Hz (50 kHz) (how many data points per second)
+RPM = 416  # Shaft speed
+SHAFT_FREQ = RPM / 60  # Hz (how many revolutions per second)
 
 FREQ_FACTORS = {
     "FIP": 14.271,   # Inner race fault
     "FEP": 11.729,   # Outer race fault
     "FRP": 10.133    # Rolling element fault
 }
+# Dictionary mapping fault types to their frequency multiplication factors (used to calculate expected fault frequencies).
 
-WINDOW_PERCENT = 2.0  # Fault zone window tolerance in percent
+WINDOW_PERCENT = 2.0  # Fault zone window tolerance in percent (how much to the left and right of the fault frequency to look for the peak)
 CSV_PATH = "vibration_data.csv"  # Input CSV path
 
 # --------------------------- LOAD RAW CSV ---------------------------
 
 print("Loading data from CSV...")
-df = pd.read_csv(CSV_PATH, header=None, names=['accel'])
-accel = df['accel'].values
-N = len(accel)
+df = pd.read_csv(CSV_PATH, header=None, names=['accel']) # load the single column accelaration data into a data frame
+accel = df['accel'].values # convert the data frame to a numpy array
+N = len(accel) # number of data points
 print(f"Loaded {N} samples at {FS} Hz → {N / FS:.2f} seconds of data.")
 
 # --------------------------- FFT COMPUTATION ---------------------------
