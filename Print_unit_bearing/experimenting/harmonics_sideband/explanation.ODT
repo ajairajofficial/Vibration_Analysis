@@ -1,0 +1,265 @@
+Step 1–2: Loading and Extracting the Vibration Signal
+    • You’re reading raw acceleration data from a CSV file.
+    • The unit is m/s², which is standard for accelerometers in vibration work.
+    • The sampling rate is 50,000 Hz, meaning you can theoretically analyze signals up to 25,000 Hz (Nyquist limit).
+ In practical terms: This is more than enough bandwidth for bearing faults, which usually show up below 10 kHz.
+
+Step 3: Time-Domain Plot
+    • This visualizes how the vibration signal changes over time.
+    • You’re showing only the first 0.1 seconds, which is smart — full datasets can be noisy and unreadable in time-domain over long durations.
+    • Time-domain is useful for:
+        ? Spotting impacts or transient events (sudden shocks).
+        ? Seeing if the signal looks periodic (e.g., consistent cycles) or random.
+This is where you'd first notice looseness, misalignment, or rubs as repeating spikes or waveforms.
+
+Step 4: FFT (Fast Fourier Transform)
+    • Converts your time-domain signal into a frequency spectrum.
+    • You use only the positive half of the spectrum since it's symmetrical.
+    • You normalize the result to preserve amplitude accuracy.
+The FFT shows which frequencies dominate the vibration. Peaks here mean consistent, repeating patterns — often tied to mechanical components.
+
+Step 5–6: Fault Frequencies & Frequency Spectrum Plot
+    • You calculate fault frequencies from known bearing defect formulas:
+        ? Inner race: 14.271 × RPM / 60
+        ? Outer race: 11.729 × RPM / 60
+        ? Ball pass (rolling element): 10.133 × RPM / 60
+    • These are kinematic frequencies that show where defects would appear if there's physical damage.
+?? If you see energy (spikes) at or near these frequencies, that's a red flag.
+
+Step 7: Zoom and Annotate Peaks in Fault Windows
+    • You define a ±2% band around each fault frequency to allow for:
+        ? Speed variation
+        ? Spectral smearing (due to windowing or sidebands)
+    • Then you find dominant peaks within each fault zone.
+    • Annotating the highest local peak gives insight into:
+        ? How prominent that fault frequency is.
+        ? If the fault is starting or already severe.
+ Very practical. In real world, machines don’t run at exactly 416 RPM — this ±2% tolerance accounts for that.
+
+Step 8: Peak Detection in 2000–4000 Hz Band
+    • You zoom into a high-frequency band and detect peaks above a set amplitude threshold (0.01 m/s²).
+    • This band likely captures:
+        ? Harmonics
+        ? Modulation sidebands
+        ? Resonances from machine structures
+ This is the zone where high-frequency energy often appears due to bearing faults and modulations from shaft rotation or cage impacts.
+
+Step 9: Harmonic Grouping
+    • This is smart: you group peaks that appear to be evenly spaced (within a small error margin).
+    • Harmonics usually indicate:
+        ? Repeated impacts at multiples of a base frequency (e.g., unbalance at 1X, misalignment at 2X, etc.)
+        ? Electromechanical issues in motors
+ Detecting at least 3 harmonics gives confidence that it's not just noise.
+
+Step 10–11: Export Harmonic Groups + Detect Sidebands
+    • Sidebands = additional peaks spaced around a main frequency.
+    • They occur due to Amplitude Modulation (AM) — typically:
+        ? Fault frequency (modulator) modulates a high carrier (shaft or structural resonance).
+    • Sidebands often show up in gear or bearing faults.
+    • This step tries to:
+        ? Extract those sidebands
+        ? Group them by harmonic set
+        ? Export for documentation
+Sidebands = signature of modulation = fault energy interacting with machine stiffness or other frequencies.
+
+Step 12: Modulation Overlay and Carrier Frequency Estimation
+    • Now you overlay:
+        ? Harmonics
+        ? Sidebands
+        ? Carrier frequencies
+    • If sidebands appear symmetrically around a center (the carrier), and spacing is consistent, you likely have:
+        ? AM pattern = modulation from faults
+Very important for diagnosing bearing looseness, cage faults, or electrical motor bar faults.
+
+Step 13: Spectrogram (Time-Frequency View)
+    • Shows how frequencies evolve over time.
+    • Useful to detect:
+        ? Bursts of energy ? impacts or rubs
+        ? Stable tones ? harmonics or resonances
+        ? Modulated lines ? sidebands shifting due to RPM variations
+The go-to tool for finding when something goes wrong, not just what frequency it happened at.
+
+Step 14: Moving RMS and Kurtosis
+    • RMS: Measures the overall energy in a signal window.
+    • Kurtosis: Measures peakedness — high kurtosis = sharp impacts or outliers.
+Use cases:
+    • Increasing RMS = steady fault growing
+    • Sudden kurtosis spike = impact event (like a cracked tooth hitting once per rotation)
+    • Both rising = something big and sudden just happened
+      
+    •  Rolling kurtosis is especially good for early bearing faults that don’t show up in RMS yet.
+
+Step 15: Overlay RMS & Kurtosis on Spectrogram
+    • Super useful view.
+    • You plot RMS and Kurtosis over time on top of the spectrogram.
+    • They’re plotted at a high frequency band (e.g., 4200–4500 Hz) just to visually overlay.
+You get to see:
+    • Time correlation between energy bursts and statistical anomalies
+    • Example:
+        ? Burst at 3 kHz + kurtosis spike + RMS rise = confirmed fault event
+
+Summary of What This Code is Really Doing:
+Step
+Goal
+Key Insight
+1–3
+Load & time plot
+Check signal integrity & impacts
+4–6
+FFT & fault overlay
+Look for known fault signatures
+7
+Annotate peaks
+Verify faults in defined zones
+8–9
+Harmonic/peak grouping
+See if periodic energy patterns exist
+10–12
+Sidebands & modulation
+Confirm AM patterns from faults
+13
+Spectrogram
+Watch how faults evolve over time
+14–15
+RMS + Kurtosis
+Detect statistical anomalies
+
+
+PART 1: WHAT IS VIBRATION IN MACHINES?
+Vibration = oscillation around a point of equilibrium.
+When a machine runs, rotating parts (shafts, bearings, gears, etc.) never rotate perfectly smoothly. Due to imbalance, misalignment, wear, or looseness, small forces are generated — and these create vibration.
+These vibrations travel through:
+    • shafts
+    • bearings
+    • frames
+    • and eventually to your sensor (accelerometer)
+What your sensor is recording is acceleration — the rate of change of velocity — in m/s².
+
+? PART 2: WHAT CAUSES VIBRATION — FAULT TYPES
+Different machine faults create different vibration signatures:
+Fault Type
+Signature in Vibration
+Imbalance
+Strong peak at 1× RPM
+Misalignment
+Peaks at 1× and 2× RPM
+Looseness
+Multiple harmonics, often noisy
+Bearing Defects
+Sharp spikes, modulations, sidebands at specific fault frequencies
+Gear Faults
+Sidebands around gear mesh frequency
+Electrical Faults
+Peaks at multiples of line frequency (e.g. 50 Hz, 100 Hz)
+These signatures appear in:
+    • Time-domain as impacts or periodic patterns
+    • Frequency-domain as spectral peaks
+    • Spectrograms as evolving frequency patterns
+    • Statistical measures as spikes (kurtosis) or trends (RMS)
+
+? PART 3: TYPES OF ANALYSIS (that your script does)
+Your script runs five primary forms of vibration analysis. Let’s go through the theory of each:
+
+1. Time-Domain Analysis
+    • You simply plot the raw acceleration signal over time.
+    • Time-domain shows:
+        ? Impacts (spikes)
+        ? Oscillation (regular sine-like patterns)
+        ? Bursts of energy (intermittent faults)
+        ? Trends (increasing energy over time)
+? When to use it:
+To spot transient events or to confirm there's mechanical contact, such as a bearing fault that hits once per revolution.
+
+2. Frequency-Domain Analysis (FFT)
+    • FFT converts the signal into frequency content.
+    • The result tells you: “how much vibration is happening at each frequency.”
+    • Peaks mean: something is happening consistently at that frequency.
+Example:
+If the machine runs at 416 RPM = 6.93 Hz
+? A spike at 6.93 Hz = imbalance
+? A spike at 13.8 Hz = misalignment (2× RPM)
+? A spike at 98 Hz = inner race defect (14.271 × 416 / 60)
+? When to use it:
+To find repeating faults like imbalance, misalignment, looseness, or bearing-specific issues.
+
+3. Peak Detection & Harmonic Grouping
+    • Real machines don’t always vibrate at just one frequency.
+    • A fault may cause vibration at multiples of a frequency (e.g., 100 Hz, 200 Hz, 300 Hz).
+These are called harmonics.
+    • Harmonics = repeating impacts
+    • 1X, 2X, 3X, etc. = key sign of faults tied to rotational symmetry
+If something is hitting once every 100 Hz, you may also get smaller echoes at 200 and 300 Hz.
+? When to use it:
+To distinguish mechanical modulation vs. random noise.
+
+4. Sideband & Amplitude Modulation Detection
+    • Sidebands are peaks spaced symmetrically around a carrier frequency.
+    • They happen when one signal modulates another.
+Real-world example:
+    • A bearing fault (100 Hz) modulates a shaft resonance (3000 Hz)
+    • You’ll see: 2900, 3000, 3100 ? that’s a sideband set
+    • Spacing of 100 Hz = modulating fault frequency
+This is Amplitude Modulation (AM) — just like in radio transmission, but with mechanical energy.
+? When to use it:
+To confirm bearing wear, cage instability, or gear mesh issues.
+
+5. Statistical Feature Tracking (RMS, Kurtosis)
+    • RMS (Root Mean Square): average energy
+        ? Goes up when a machine vibrates more
+        ? Rising RMS = developing fault
+    • Kurtosis: how spiky a signal is
+        ? High kurtosis = sudden events
+        ? Sensitive to early faults before RMS increases
+Imagine RMS is your volume knob, and kurtosis is your shock detector.
+? When to use it:
+To track changes over time, especially for trending and early warning.
+
+6. Spectrogram (Time-Frequency Analysis)
+    • Think of it like an MRI of your signal.
+    • X = time, Y = frequency, color = amplitude
+    • It shows how frequency components change over time.
+    • Stable horizontal lines ? stable tones (resonance or harmonics)
+    • Wiggles or bursts ? modulations or impacts
+? When to use it:
+To catch when something went wrong, not just what frequency it's at.
+
+? PART 4: How These All Work Together
+Your script is brilliant because it layers these techniques like a forensic workflow:
+    1. Plot the signal ? Did something weird happen?
+    2. FFT ? What frequencies are active?
+    3. Overlay fault bands ? Are these linked to known bearing fault frequencies?
+    4. Zoom & Annotate ? Which exact frequency is strongest?
+    5. Detect harmonics ? Is this fault repeating in time?
+    6. Detect sidebands ? Is this vibration being modulated?
+    7. Spectrogram ? When did the problem start, and how did it grow?
+    8. RMS & kurtosis ? Is this developing? Any spikes?
+    9. Overlay stats on spectrogram ? Connect energy bursts to specific machine behaviors.
+You’re not just analyzing — you’re diagnosing, like a doctor using an ECG, X-ray, and MRI together.
+
+? Practical Tips to Use This to the Max
+    1. Don’t rely on one tool
+Always check both time-domain, frequency-domain, and spectrogram.
+    2. Zoom into interesting areas
+If the spectrogram shows a burst at 1.2s and 3.6s, zoom into those segments for FFT.
+    3. Know your machine's kinematics
+Get bearing model numbers, gear ratios, motor pole counts. The more info, the more precise the analysis.
+    4. Use kurtosis to scan long files
+For long recordings, use kurtosis spikes to jump straight to impact zones.
+    5. Record RPM with every sample
+Without exact RPM, fault frequency overlays can be inaccurate.
+    6. Compare before/after
+Collect baseline vibration from a healthy machine and compare future readings to detect deviations.
+
+? TL;DR — What You’re Really Doing
+You’re turning raw acceleration signals into a diagnostic report.
+You detect:
+    • What frequencies dominate
+    • Whether they match known fault types
+    • If the vibration is steady, increasing, or bursting
+    • How energy spreads across frequency and time
+    • Whether modulation patterns exist
+All of this can tell you:
+    • Which component is failing
+    • How serious the fault is
+    • Whether you need to shut down now, or plan a maintenance stop soon
+

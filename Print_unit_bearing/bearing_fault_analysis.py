@@ -45,6 +45,9 @@ FREQ_FACTORS = {
 WINDOW_PERCENT = 2.0  # Fault zone window tolerance in percent (how much to the left and right of the fault frequency to look for the peak)
 CSV_PATH = "vibration_data.csv"  # Input CSV path
 
+SHOW_IN_G = True  # Set to True to display/export/plot in g, False for m/s²
+G_CONV = 9.81
+
 # --------------------------- LOAD RAW CSV ---------------------------
 
 print("Loading data from CSV...")
@@ -56,7 +59,13 @@ print(f"Loaded {N} samples at {FS} Hz → {N / FS:.2f} seconds of data.")
 # --------------------------- FFT COMPUTATION ---------------------------
 
 print("Computing FFT...")
-yf = np.abs(fft(accel)[:N // 2])  # FFT magnitude (one-sided)
+# Normalized FFT (amplitude spectrum)
+yf = (2.0 / N) * np.abs(fft(accel)[:N // 2])  # m/s²
+if SHOW_IN_G:
+    yf = yf / G_CONV  # Convert to g
+    unit_label = 'g'
+else:
+    unit_label = 'm/s²'
 xf = fftfreq(N, 1 / FS)[:N // 2]  # Frequency axis (Hz)
 
 # --------------------------- FAULT BAND ANALYSIS ---------------------------
@@ -82,7 +91,33 @@ for fault, factor in FREQ_FACTORS.items():
         'peak_freq': peak_freq,
         'peak_amp': peak_amp
     }
-    print(f"{fault}: Expected @ {fault_freq:.2f} Hz → Peak @ {peak_freq:.2f} Hz, Amplitude = {peak_amp:.2f}")
+    print(f"{fault}: Expected @ {fault_freq:.2f} Hz → Peak @ {peak_freq:.2f} Hz, Amplitude = {peak_amp:.5f} {unit_label}")
+
+# --------------------------- HIGH-FREQ PEAK SEARCH ---------------------------
+
+# Find peaks in the 2000-5000 Hz range with amplitude > 1000 (in current unit)
+freq_min = 2000
+freq_max = 5000
+amp_thresh = .01 / G_CONV if SHOW_IN_G else 1000  # Adjust threshold if in g
+
+# Mask for the frequency range
+range_mask = (xf >= freq_min) & (xf <= freq_max)
+xf_range = xf[range_mask]
+yf_range = yf[range_mask]
+
+# Find peaks above threshold
+peaks, properties = find_peaks(yf_range, height=amp_thresh)
+
+# Export peaks to Excel if any found
+if len(peaks) > 0:
+    peak_freqs = xf_range[peaks]
+    peak_amps = yf_range[peaks]
+    peaks_df = pd.DataFrame({'Frequency (Hz)': peak_freqs, f'Amplitude ({unit_label})': peak_amps})
+    excel_path = f'high_freq_peaks_{unit_label.replace("/", "_")}.xlsx'
+    peaks_df.to_excel(excel_path, index=False)
+    print(f"\nExported {len(peaks)} peaks above {amp_thresh:.5f} {unit_label} between {freq_min} Hz and {freq_max} Hz to {excel_path}.")
+else:
+    print(f"\nNo peaks above {amp_thresh:.5f} {unit_label} found between {freq_min} Hz and {freq_max} Hz.")
 
 # --------------------------- VISUALIZATION ---------------------------
 
@@ -103,12 +138,12 @@ for fault, result in fault_results.items():
     
     # Peak line
     plt.axvline(peak_freq, color=colors[fault], linestyle='--', linewidth=1.5)
-    plt.text(peak_freq + 1, peak_amp, f"{fault} peak\n{peak_freq:.2f} Hz\n{peak_amp:.2f}", 
+    plt.text(peak_freq + 1, peak_amp, f"{fault} peak\n{peak_freq:.2f} Hz\n{peak_amp:.5f} {unit_label}", 
              color=colors[fault], fontsize=10, va='bottom', ha='left', bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=colors[fault]))
 
 plt.title("Vibration Spectrum Print Unit ", fontsize=16, fontweight='bold')
 plt.xlabel("Frequency (Hz)", fontsize=14)
-plt.ylabel("Amplitude (|FFT|)", fontsize=14)
+plt.ylabel(f"Amplitude (|FFT|) [{unit_label}]", fontsize=14)
 plt.xlim(0, 1000)  # Focus on low-frequency faults
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.legend(fontsize=12)
